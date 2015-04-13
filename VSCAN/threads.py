@@ -10,11 +10,12 @@ Created on Apr 9, 2015
 # vim: retab
 
 '''
-__updated__ = "2015-04-09"
+__updated__ = "2015-04-13"
 
 
 from Common.singleton import Singleton
 
+import vlanScanner
 import threading
 
 
@@ -28,10 +29,10 @@ class ThreadList(object):
   
   
   def __init__(self):
-    self.__threadList = []
+    self.__threadList = []  # {'instance': object, 'vlan': str, 'nic': str}
     self.__threadListLock = threading.Lock()
     self.__resultDict = {}
-    self.__resultCond = {}
+    self.__resultCond = threading.Condition()
     return
   
   
@@ -45,30 +46,89 @@ class ThreadList(object):
     return tl
   
   
-  def createThread(self, myThreadClass):
+  def getAnyAliveState(self):
     '''
-    Create a thread from class myThreadClass
+    Returns:
+        True:  if any thread is still alive
+        False: otherwise
     '''
-    myThread = None
-    # moar code here
+    with self.__threadListLock:
+      for t in self.__threadList:
+        if t.get('instance').getState() > 0:
+          return True
+    return False
+  
+  
+  def getAliveCount(self):
+    '''
+    Returns an integer of threads considered alive.
+    '''
+    count = 0
+    with self.__threadListLock:
+      for t in self.__threadList:
+        if t.get('instance').getState() > 0:
+          count += 1
+    return count
+  
+  
+  def createThread(self, scanMode = None, vlanId = None, nic = None):
+    '''
+    Create a thread with the params scanMode and vlanId
+    '''
+    if not (scanMode or vlanId or nic): return None
+    if not scanMode in vlanScanner.scanModes: return None
+    if not vlanId in vlanScanner.validVlanIds: return None
+    if not type(nic) == str: return None
+    myThread = {} 
+    t = None
+    with self.__threadListLock:
+      if scanMode == 'active':
+        t = vlanScanner.VlanScanActive(vlanId, nic)
+      if scanMode == 'passive':
+        t = vlanScanner.VlanScanPassive(vlanId, nic)
+      myThread.update({'instance': t, 'vlan': vlanId, 'nic': nic})
+      self.__threadList.append(myThread)
     return myThread
   
   
-  def startThread(self, myThreadInstance):
+  def startThread(self, myThread):
     '''
-    Start a myThreadInstance, created by createThread()
+    Start a myThread.get('instance'), created by createThread()
+    Return values:
+        True - thread started successfully
+        False - any error occurred
+    '''
+    myThreadInstance = myThread.get('instance')
+    try:
+      myThreadInstance.start()
+    except RuntimeError:
+      return False  
+    return True
+  
+  
+  def stopThread(self, myThread):
+    '''
+    Stop a myThread.get('instance'), created by createThread()
     '''
     retval = False
-    # moar code here
+    myThreadInstance = myThread.get('instance')
+    if myThreadInstance.getState() > 0:
+      with self.__threadListLock:
+        myThreadInstance.stopThread()
+        self.__threadList.remove(myThread)
+        retval = True
     return retval
   
   
-  def stopThread(self, myThreadInstance):
+  def stopAll(self):
     '''
-    Stop a myThreadInstance, created by createThread()
+    Stop all running instances
     '''
-    retval = False
-    # moar code here!
+    retval = True
+    with self.__threadListLock:
+      for t in self.__threadList:
+        if self.stopThread(t) == False:
+          retval = False
     return retval
 
 
