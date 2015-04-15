@@ -10,7 +10,7 @@ Created on Apr 9, 2015
 # vim: retab
 
 '''
-__updated__ = "2015-04-13"
+__updated__ = "2015-04-14"
 
 
 from Common.puts import c
@@ -56,7 +56,15 @@ class VlanScanActive(threading.Thread):
         os.system('ip link set ' + self.__vlanIface + ' up')
         c.puts('[+] Created interface ' + self.__vlanIface)
       c.puts("[*] Scanning VLAN: " + str(self.__vlan))
+      
+      
+      
+      # TODO: MOAR SOURCE CODE - DO A SCAN
       time.sleep(random.randint(1, 5))
+      
+      
+      
+      
       self.stopThread()
     return True
   
