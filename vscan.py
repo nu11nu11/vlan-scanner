@@ -10,7 +10,7 @@ Created on Apr 8, 2015
 # vim: retab
 
 '''
-__updated__ = "2015-04-13"
+__updated__ = "2015-04-14"
 
 
 version = "0.1"
@@ -48,6 +48,7 @@ class Main(object):
     self.__iface = None
     self.__ifaceMac = None
     self.__ifaceOldMac = None
+    self.__threads = 0
     self.__vlanIds = []
     self.__running = 0
     
@@ -59,6 +60,7 @@ class Main(object):
     global c
     # parse cmd line args
     cfg = self.__parseOptions(sys.argv[1:])
+    if cfg is False: return False
     (errcode, errmsg) = self.__parseCmdLine(cfg)
     if errcode > 0: 
       c.puts(errmsg)
@@ -83,15 +85,16 @@ class Main(object):
       vlanList.reverse()
       # staggered vlan scan
       while len(vlanList) > 0:
-        if TL.getAliveCount() < 10:
+        if TL.getAliveCount() < self.__threads:
           v = vlanList.pop()
           t = TL.createThread('active', v, self.__iface)
           TL.startThread(t)
-      
-        # moar source code here...
-      
-      
-      pass
+          
+          
+      # TODO: MOAR SOURCE CODE - COLLECT AND EVALUATE RESULTS
+          
+          
+      # scans have finished or an error has occurred
     finally:
       # put self.__iface back into non-promiscuous mode
       os.system("ip link set dev " + self.__iface + " promisc off")
@@ -112,13 +115,14 @@ class Main(object):
     argParser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
     argParser.add_argument("-i", "--iface", dest = "iface", default = "eth0", help = "The hardware network interface to scan.", metavar = "NIC")
     argParser.add_argument("-m", "--mac", dest = "mac", help = "Use MAC as hardware address on NIC.", metavar = "MAC")
+    argParser.add_argument("-t", "--threads", type = int, dest = "threads", default = 10, help = "Scan NUM_THREADS vlan ids concurrently.", metavar = "NUM_THREADS")
     argParser.add_argument("vlanIds", help = "The vlan ids to scan. Format: 1,70-150,42", metavar = "VLAN-IDs")
     argParser.add_argument("-v", "--version", action = "version", version = self.__progVersion)
     try:
       cfg = argParser.parse_args(myargs)
       if DBG: c.puts(str(cfg))
     except SystemExit:
-      sys.exit()
+      return False
     except:
       return None
     return cfg
@@ -144,9 +148,13 @@ class Main(object):
       errcode = 2
       errmsg = "[-] No such interface: " + cfg.iface
       return (errcode, errmsg)
+    if cfg.threads > 0: self.__threads = cfg.threads
+    else:
+      errcode = 3
+      errmsg = "[-] A positive number of threads must be given."
     self.__vlanIds = self.__parseVlanIdString(cfg.vlanIds)
     if self.__vlanIds == []:
-      errcode = 3
+      errcode = 10
       errmsg = "[-] vlan range string is invalid."
       return (errcode, errmsg)
     return (errcode, errmsg)
