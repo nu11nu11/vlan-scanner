@@ -10,7 +10,7 @@ Created on Apr 9, 2015
 # vim: retab
 
 '''
-__updated__ = "2015-04-13"
+__updated__ = "2015-05-11"
 
 
 from Common.singleton import Singleton
@@ -32,6 +32,7 @@ class ThreadList(object):
     self.__threadList = []  # {'instance': object, 'vlan': str, 'nic': str}
     self.__threadListLock = threading.Lock()
     self.__resultDict = {}
+    self.__resultDictLock = threading.Lock()
     self.__resultCond = threading.Condition()
     return
   
@@ -71,22 +72,23 @@ class ThreadList(object):
     return count
   
   
-  def createThread(self, scanMode = None, vlanId = None, nic = None):
+  def createThread(self, scanMode = None, vlanId = None, nic = None, mac = None):
     '''
-    Create a thread with the params scanMode and vlanId
+    Create a thread with the params scanMode, vlanId, nic, mac
     '''
     if not (scanMode or vlanId or nic): return None
     if not scanMode in vlanScanner.scanModes: return None
     if not vlanId in vlanScanner.validVlanIds: return None
     if not type(nic) == str: return None
+    if not mac: return None
     myThread = {} 
     t = None
     with self.__threadListLock:
       if scanMode == 'active':
-        t = vlanScanner.VlanScanActive(vlanId, nic)
+        t = vlanScanner.VlanScanActive(vlanId, nic, mac, self.__resultDict, self.__resultDictLock)
       if scanMode == 'passive':
-        t = vlanScanner.VlanScanPassive(vlanId, nic)
-      myThread.update({'instance': t, 'vlan': vlanId, 'nic': nic})
+        t = vlanScanner.VlanScanPassive(vlanId, nic, mac, self.__resultDict, self.__resultDictLock)
+      myThread.update({'instance': t, 'vlan': vlanId, 'nic': nic, 'mac': mac})
       self.__threadList.append(myThread)
     return myThread
   

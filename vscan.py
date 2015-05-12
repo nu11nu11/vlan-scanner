@@ -10,7 +10,7 @@ Created on Apr 8, 2015
 # vim: retab
 
 '''
-__updated__ = "2015-04-14"
+__updated__ = "2015-05-11"
 
 
 version = "0.1"
@@ -87,7 +87,7 @@ class Main(object):
       while len(vlanList) > 0:
         if TL.getAliveCount() < self.__threads:
           v = vlanList.pop()
-          t = TL.createThread('active', v, self.__iface)
+          t = TL.createThread('active', v, self.__iface, self.__ifaceMac)
           TL.startThread(t)
           
           

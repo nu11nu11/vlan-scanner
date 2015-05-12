@@ -10,10 +10,11 @@ Created on Apr 9, 2015
 # vim: retab
 
 '''
-__updated__ = "2015-04-14"
+__updated__ = "2015-05-12"
 
 
 from Common.puts import c
+from VSCAN.Scanner.broadcastDhcpDiscover import DhcpDiscover
 
 import threading
 import time
@@ -31,10 +32,13 @@ class VlanScanActive(threading.Thread):
   Do an active scan on one vlan
   '''
   
-  def __init__(self, vlan, nic):
+  def __init__(self, vlan, nic, mac, results, resultlock):
     global c
     self.__vlan = str(vlan)
     self.__nic = nic
+    self.__mac = mac
+    self.__resultDict = results
+    self.__resultDictLock = resultlock
     self.__vlanIface = self.__nic + '.' + self.__vlan
     self.__running = 1
     threading.Thread.__init__(self)
@@ -60,11 +64,13 @@ class VlanScanActive(threading.Thread):
       
       
       # TODO: MOAR SOURCE CODE - DO A SCAN
-      time.sleep(random.randint(1, 5))
+      # time.sleep(random.randint(1, 5))
+      dhcpThread = DhcpDiscover(self.__vlanIface, self.__mac, self.__resultDict, self.__resultDictLock)
+      dhcpThread.start()
       
+      # start more scans
       
-      
-      
+      dhcpThread.join()
       self.stopThread()
     return True
   
